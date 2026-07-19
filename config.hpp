@@ -1,6 +1,7 @@
+#pragma once
 #include <Arduino.h>
 #include <Wire.h>
-#pragma once
+
 
 #define SDA_PIN 6
 #define SCL_PIN 7
@@ -10,17 +11,21 @@
 #define SCREEN_RESET -1
 #define SCREEN_ADDRESS 0x3C
 #define SCREEN_WIRE &Wire
+#define SCREEN_REFRESH 250 //Update every 250ms
 
+//#define PIR_MOTION 1
 
-#define PIR_MOTION 1
-#define FORCE_SENSOR 2
 #define SONAR_TRIG 3
 #define SONAR_ECHO 4
 #define SONAR_DISTANCE 200
 
 #define BUZZER 5
+#define BUTTON 1
 
-// if using spi for RFID
+#define IR_SEND 13
+#define IR_RECIEVE 14
+
+// if using RFID
 #define SS_PIN 8
 #define SCK_PIN 9
 #define MOSI_PIN 10
@@ -39,11 +44,14 @@ String weatherAPI = "http://api.openweathermap.org/data/2.5/weather?lat="+LAT+"&
 
 
 struct Status {
+    bool humanPresent = false;
     bool isRaining = false;
     bool keysPresent = false;
     bool umbrellaPresent = false;
     bool walletPresent = false;
 
+    bool missingStuff = false;
+    
     String mainWeather = "";
     String description = "";
 }
