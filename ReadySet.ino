@@ -1,12 +1,13 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 
 #include <NewPing.h>
 #include <Adafruit_SSD1306.h>
-
+#include <arduino-timer.h>
 
 #include "config.hpp"
 #include "Screen.hpp"
@@ -17,6 +18,7 @@ NewPing SONAR(SONAR_TRIG, SONAR_ECHO, SONAR_DISTANCE);
 
 ScreenHelper SCREEN(&oled, &currentStatus);
 
+auto timer = timer_create_default();
 
 void setup() {
     Serial.begin(115200);
@@ -32,10 +34,32 @@ void setup() {
 }
 
 
+//Things to add
+//Weekday only stuff
+// Temperature Reminders
 void loop() {
-    updateWeather();
-    Screen.updateScreen();
+
+    if (WiFi.status != WL_CONNECTED) 
+        connectWifi();
     
+        
+    timer.tick();
+    SCREEN.updateScreen();
+    updateWeather();
+    int sonarDistance = pingSonar();
+    bool beamBreak = pingIR();
+    bool pressurePlate = checkButton(BUTTON);
+
+    currentStatus.humanPresent = sonarDistance < 100;
+    currentStatus.walletPresent = pressurePlate;
+    currentStatus.umbrellaPresent = beamBreak;
+
+    currentStatus.missingStuff = (currentStatus.walletPresent || (currentStatus.umbrellaPresent && currentStatus.isRaining));
+
+    if (currentStatus.humanPresent && currentStatus.missingStuff) {
+        Buzz(currentStatus.missingStuff);
+        timer.in(180000, sendReminder);
+    }
 
 }
 
@@ -61,12 +85,13 @@ void connectWifi() {
 
 void updateWeather() {
     const unsigned long weatherUpdateInterval = 600000;
-    static unsigned long prevWeatherUpdate = 0;
+    static unsigned long prevWeatherUpdate = -600000;
 
-    if ((millis() - prevUpdate) >= weatherUpdateInterval) {
-        prevUpdate = millis();
+    if ((millis() - prevWeatherUpdate) >= weatherUpdateInterval) {
+        prevWeatherUpdate = millis();
 
-        if (WiFi.status == WL_CONNECTED) {
+    
+        if (WiFi.status() == WL_CONNECTED) {
             HTTPClient http;
             http.begin(weatherAPI);
             int httpCode = http.GET();
@@ -77,16 +102,15 @@ void updateWeather() {
                 JsonDocument doc;
                 deserializeJson(doc, response);
 
-                String mainWeather = String(doc["weather"][0]["main"]);
-                String description = String(doc["weather"][0]["description"]);
+                String mainWeather = (doc["weather"][0]["main"]).as<String>();
+                String description = (doc["weather"][0]["description"]).as<String>();
 
                 currentStatus.mainWeather = mainWeather;
                 currentStatus.description = description;
 
-                mainWeather.toLowerCase();
-                description.toLowerCase();
+                String mainLower = mainWeather.toLowerCase();
 
-                if (mainWeather == "rain" || mainWeather == "drizzle") {
+                if (mainLower == "rain" || mainLower == "drizzle" || mainLower == "thunderstorm") {
                     currentStatus.isRaining = true;
                 } else {
                     currentStatus.isRaining = false;
@@ -97,38 +121,48 @@ void updateWeather() {
     }
 }
 
-int pingSonar(NewPing *pSonar) {
-    int distance = pSonar->ping_cm();
+int pingSonar() {
+    const unsigned long SonarUpdateInterval = 50;
+    static unsigned long prevSonarUpdate = 0;
+    static int distance = 200;
+    if ((millis() - prevSonarUpdate) >= SonarUpdateInterval) {
+        distance = SONAR.ping_cm();
+        prevSonarUpdate = millis();
+    }
     return distance;
 }
 
 bool pingIR() {
     const unsigned long IRUpdateInterval = 50;
     static unsigned long prevIRUpdate = 0;
-
+    static bool breakBeam = false;
     if ((millis() - prevIRUpdate) >= IRUpdateInterval) {
         prevIRUpdate = millis();
 
-        tone(IR_SEND, 38000;)
-        delay(2);
+        tone(IR_SEND, 38000);
+        delay(10);
 
         int recieveReading = digitalRead(IR_RECIEVE);
         noTone(IR_SEND);
 
         if (recieveReading == HIGH) {
-            return true; //Beam Break
+            breakBeam = true; //Beam Break
+        } else {
+            breakBeam = false;
         }
     }
-    return false; // No Beam Break
+    return breakBeam; // No Beam Break
 }
 
 
 void Buzz(bool startBuzz) {
-    unsigned long buzzDuration = 500;
+    unsigned long buzzDuration = 300;
+    int buzzCooldown = 1000;
     static bool isBuzzing = false;
     static unsigned long prevBuzz = 0;
+    
 
-    if (startBuzz && !isBuzzing) {
+    if (startBuzz && !isBuzzing && (millis() - prevBuzz >= buzzDuration + buzzCooldown)) {
         digitalWrite(BUZZER, HIGH);
         isBuzzing = true;
         prevBuzz = millis();
@@ -146,18 +180,45 @@ bool checkButton(int pin) {
     const int debounceDelay = 50;
     static int prevState = HIGH;
     static unsigned long lastDebounce = 0;
-    bool pressed = false;
 
-    int reading = digitalRead(BUTTON);
+    int reading = digitalRead(pin);
 
     if (reading != prevState) {
         lastDebounce = millis();
     }
 
     if ((millis() - lastDebounce) > debounceDelay) {
-        pressed = reading;
-        prevState = reading;
+            prevState = reading;
+            return (reading == LOW);
     }
-    return pressed;
+    return false;
 }
 
+bool sendReminder(void *argument) {
+    if (WiFi.status() == WL_CONNECTED) {
+
+        JsonDocument doc;
+        String outputJson;
+        doc["content"] = "Ur Missing Stuff!";
+        serializeJson(doc, outputJson);
+
+        WiFiClientSecure client;
+        client.setInsecure();
+        HTTPClient https;   
+        https.begin(client, discordWebhook);
+
+        https.addHeader("Content-Type", "application/json");
+        int responseCode = https.POST(outputJson);
+
+        if (responseCode > 0) {
+            if (responseCode == HTTP_CODE_OK) {
+                Serial.println("message sent");
+            } else {
+                Serial.println("message error");
+            }
+        }
+        https.end();
+        
+    }
+    return false;
+}

@@ -11,7 +11,7 @@
 #define SCREEN_RESET -1
 #define SCREEN_ADDRESS 0x3C
 #define SCREEN_WIRE &Wire
-#define SCREEN_REFRESH 250 //Update every 250ms
+#define SCREEN_REFRESH 500 //milliseconds
 
 //#define PIR_MOTION 1
 
@@ -25,12 +25,6 @@
 #define IR_SEND 13
 #define IR_RECIEVE 14
 
-// if using RFID
-#define SS_PIN 8
-#define SCK_PIN 9
-#define MOSI_PIN 10
-#define MISO_PIN 11
-#define RST_PIN 12
 
 const char *SSID = "SSDID HERE";
 const char *PASSWD = "PASSWORD HERE";
@@ -42,11 +36,11 @@ const String LONG = "-74.0138";
 const String UNITS = "imperial";
 String weatherAPI = "http://api.openweathermap.org/data/2.5/weather?lat="+LAT+"&lon="+LONG+"&units="+UNITS+"&appid="+APIKEY;
 
+const String discordWebhook = "WEBHOOK URL HERE";
 
 struct Status {
     bool humanPresent = false;
     bool isRaining = false;
-    bool keysPresent = false;
     bool umbrellaPresent = false;
     bool walletPresent = false;
 
