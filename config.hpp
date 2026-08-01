@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <Wire.h>
-
+#include "time.h"
 
 #define SDA_PIN 6
 #define SCL_PIN 7
@@ -38,6 +38,11 @@ const String weatherAPI = "http://api.openweathermap.org/data/2.5/weather?lat="+
 
 const String discordWebhook = "WEBHOOK URL HERE";
 
+// Telling the Time
+const char *timeServer = "pool.ntp.org";
+const long timeOffset = -18000; // based on ur timezone
+const int daylightSaving = 3600;
+
 struct Status {
     bool humanPresent = false;
     bool isRaining = false;
@@ -48,4 +53,8 @@ struct Status {
     
     String mainWeather = "";
     String description = "";
+
+    struct tm currentTime;
+
+    char timeString[50];
 };

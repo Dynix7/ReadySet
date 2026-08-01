@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "time.h"
 
 #include <NewPing.h>
 #include <Adafruit_SSD1306.h>
@@ -29,6 +30,7 @@ void setup() {
     SCREEN.initScreen();
 
     connectWifi();
+    connectTime();
     updateWeather();
 
 }
@@ -40,10 +42,11 @@ void setup() {
 void loop() {
     static bool reminderSet = false;
 
-    if (WiFi.status() != WL_CONNECTED) 
+    if (WiFi.status() != WL_CONNECTED) {
         connectWifi();
-    
-        
+    }
+
+    updateTime();
     timer.tick();
     SCREEN.updateScreen();
     updateWeather();
@@ -57,16 +60,18 @@ void loop() {
 
     currentStatus.missingStuff = (!currentStatus.walletPresent || (!currentStatus.umbrellaPresent && currentStatus.isRaining));
     
-    Buzz(currentStatus.humanPresent && currentStatus.missingStuff);
-    if (currentStatus.humanPresent && currentStatus.missingStuff) {
-        
+    if (currentStatus.currentTime.tm_hour >= 4 && currentStatus.currentTime.tm_hour < 12) {
 
-        if (!reminderSet) {
-            timer.in(180000, sendReminder);
-            reminderSet = true;
+    Buzz(currentStatus.humanPresent && currentStatus.missingStuff);
+        if (currentStatus.humanPresent && currentStatus.missingStuff) {
+            if (!reminderSet) {
+                timer.in(180000, sendReminder);
+                reminderSet = true;
+            }
+        } else {
+            reminderSet = false;
         }
-    } else {
-        reminderSet = false;
+        
     }
 
 }
@@ -85,12 +90,34 @@ void pinSetup() {
 void connectWifi() {
     WiFi.begin(SSID, PASSWD);
     while (WiFi.status() != WL_CONNECTED) {
-        delay(100);
+        delay(50);
         Serial.print(".");
     }
     Serial.println(" Connected");
 }
 
+void connectTime() {
+    configTime(timeOffset, daylightSaving, timeServer);
+    Serial.println("Connecting Time");
+    while (!getLocalTime(&currentStatus.currentTime)) {
+        delay(100);
+        Serial.print(".");
+    }
+    strftime(currentStatus.timeString, sizeof(currentStatus.timeString), "%A, %H:%M:%S", &currentStatus.currentTime);
+    Serial.println("Time Connected :)");
+}
+
+void updateTime() {
+    const unsigned long timeUpdateInterval = 250;
+    static unsigned long prevTimeUpdate = 0;
+    if ((millis()- prevTimeUpdate) >= timeUpdateInterval) {
+        prevTimeUpdate = millis();
+        getLocalTime(&currentStatus.currentTime);
+        
+        strftime(currentStatus.timeString, sizeof(currentStatus.timeString), "%A, %H:%M:%S", &currentStatus.currentTime);
+    }
+
+}
 void updateWeather() {
     const unsigned long weatherUpdateInterval = 600000;
     static unsigned long prevWeatherUpdate = 0;
@@ -101,8 +128,9 @@ void updateWeather() {
 
     
         if (WiFi.status() == WL_CONNECTED) {
+            WiFiClient client;
             HTTPClient http;
-            http.begin(weatherAPI);
+            http.begin(client, weatherAPI);
             int httpCode = http.GET();
 
             if (httpCode == 200) {
