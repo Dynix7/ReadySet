@@ -23,7 +23,7 @@
 #define BUTTON 1
 
 #define IR_SEND 13
-#define IR_RECIEVE 14
+#define IR_RECEIVE 14
 
 
 const char *SSID = "SSDID HERE";
@@ -34,7 +34,7 @@ const String APIKEY = "API THINGY";
 const String LAT = "40.7179";
 const String LONG = "-74.0138";
 const String UNITS = "imperial";
-String weatherAPI = "http://api.openweathermap.org/data/2.5/weather?lat="+LAT+"&lon="+LONG+"&units="+UNITS+"&appid="+APIKEY;
+const String weatherAPI = "http://api.openweathermap.org/data/2.5/weather?lat="+LAT+"&lon="+LONG+"&units="+UNITS+"&appid="+APIKEY;
 
 const String discordWebhook = "WEBHOOK URL HERE";
 
@@ -48,4 +48,4 @@ struct Status {
     
     String mainWeather = "";
     String description = "";
-}
+};

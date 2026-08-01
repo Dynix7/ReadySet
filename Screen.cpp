@@ -1,5 +1,5 @@
 #include "Screen.hpp"
-#include "config.cpp"
+#include "config.hpp"
 
 ScreenHelper::ScreenHelper(Adafruit_SSD1306 *pScreen, struct Status *pcurrentStatus) : 
     Screen(pScreen), currentStatus(pcurrentStatus) {}
@@ -17,22 +17,22 @@ void ScreenHelper::initScreen() {
     lastRefresh = millis();
 }
 
-void ScreenHelper:updateScreen() {
+void ScreenHelper::updateScreen() {
 
     if ((millis() - lastRefresh) > SCREEN_REFRESH) {
         lastRefresh = millis();
         Screen->clearDisplay();
 
         Screen->setCursor(leftAlign, row0);
-        Screen->print("Main Weather: ")
+        Screen->print("Main Weather: ");
         Screen->println(currentStatus->mainWeather);
 
         Screen->setCursor(leftAlign, row1);
-        Screen->print("Description: ")
+        Screen->print("Description: ");
         Screen->println(currentStatus->description);
 
         Screen->setCursor(leftAlign, row2);
-        Screen->print("Missing Anything?: ")
+        Screen->print("Missing Anything?: ");
         Screen->println(currentStatus->missingStuff);
 
         //Finish with whatever slop later

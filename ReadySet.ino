@@ -38,8 +38,9 @@ void setup() {
 //Weekday only stuff
 // Temperature Reminders
 void loop() {
+    static bool reminderSet = false;
 
-    if (WiFi.status != WL_CONNECTED) 
+    if (WiFi.status() != WL_CONNECTED) 
         connectWifi();
     
         
@@ -50,15 +51,22 @@ void loop() {
     bool beamBreak = pingIR();
     bool pressurePlate = checkButton(BUTTON);
 
-    currentStatus.humanPresent = sonarDistance < 100;
+    currentStatus.humanPresent = (sonarDistance > 0 && sonarDistance < 100);
     currentStatus.walletPresent = pressurePlate;
     currentStatus.umbrellaPresent = beamBreak;
 
-    currentStatus.missingStuff = (currentStatus.walletPresent || (currentStatus.umbrellaPresent && currentStatus.isRaining));
-
+    currentStatus.missingStuff = (!currentStatus.walletPresent || (!currentStatus.umbrellaPresent && currentStatus.isRaining));
+    
+    Buzz(currentStatus.humanPresent && currentStatus.missingStuff);
     if (currentStatus.humanPresent && currentStatus.missingStuff) {
-        Buzz(currentStatus.missingStuff);
-        timer.in(180000, sendReminder);
+        
+
+        if (!reminderSet) {
+            timer.in(180000, sendReminder);
+            reminderSet = true;
+        }
+    } else {
+        reminderSet = false;
     }
 
 }
@@ -68,10 +76,10 @@ void pinSetup() {
     pinMode(SONAR_TRIG, OUTPUT);
     
     pinMode(BUZZER, OUTPUT);
-    pinMode(BUTTON, INPUT);
+    pinMode(BUTTON, INPUT_PULLUP);
 
     pinMode(IR_SEND, OUTPUT);
-    pinMode(IR_RECIEVE, INPUT);
+    pinMode(IR_RECEIVE, INPUT);
 }
 
 void connectWifi() {
@@ -85,9 +93,10 @@ void connectWifi() {
 
 void updateWeather() {
     const unsigned long weatherUpdateInterval = 600000;
-    static unsigned long prevWeatherUpdate = -600000;
-
-    if ((millis() - prevWeatherUpdate) >= weatherUpdateInterval) {
+    static unsigned long prevWeatherUpdate = 0;
+    static bool firstRun = true;
+    if ((millis() - prevWeatherUpdate) >= weatherUpdateInterval || firstRun) {
+        firstRun = false;
         prevWeatherUpdate = millis();
 
     
@@ -108,7 +117,8 @@ void updateWeather() {
                 currentStatus.mainWeather = mainWeather;
                 currentStatus.description = description;
 
-                String mainLower = mainWeather.toLowerCase();
+                String mainLower = mainWeather;
+                mainLower.toLowerCase();
 
                 if (mainLower == "rain" || mainLower == "drizzle" || mainLower == "thunderstorm") {
                     currentStatus.isRaining = true;
@@ -142,10 +152,10 @@ bool pingIR() {
         tone(IR_SEND, 38000);
         delay(10);
 
-        int recieveReading = digitalRead(IR_RECIEVE);
+        int receiveReading = digitalRead(IR_RECEIVE);
         noTone(IR_SEND);
 
-        if (recieveReading == HIGH) {
+        if (receiveReading == HIGH) {
             breakBeam = true; //Beam Break
         } else {
             breakBeam = false;
@@ -179,19 +189,21 @@ void Buzz(bool startBuzz) {
 bool checkButton(int pin) {
     const int debounceDelay = 50;
     static int prevState = HIGH;
+    static int debouncedState = HIGH;
     static unsigned long lastDebounce = 0;
 
     int reading = digitalRead(pin);
 
-    if (reading != prevState) {
+    if (reading != prevState) { 
         lastDebounce = millis();
     }
 
     if ((millis() - lastDebounce) > debounceDelay) {
-            prevState = reading;
-            return (reading == LOW);
+        debouncedState = reading; 
     }
-    return false;
+    
+    prevState = reading;
+    return (debouncedState == LOW); 
 }
 
 bool sendReminder(void *argument) {

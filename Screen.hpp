@@ -12,7 +12,7 @@ class ScreenHelper {
         unsigned long deltaTime = 0;
 
         
-        int leftAlign = SCREEN_WIDTH/5;
+        int leftAlign = 16;
         int row0 = 0;
         int row1 = 8;
         int row2 = 16;
@@ -29,4 +29,4 @@ class ScreenHelper {
 
         void updateScreen();
 
-}
+};
