@@ -20,6 +20,7 @@ NewPing SONAR(SONAR_TRIG, SONAR_ECHO, SONAR_DISTANCE);
 ScreenHelper SCREEN(&oled, &currentStatus);
 
 auto timer = timer_create_default();
+Timer<>::Task reminderTask;
 
 void setup() {
     Serial.begin(115200);
@@ -65,10 +66,11 @@ void loop() {
     Buzz(currentStatus.humanPresent && currentStatus.missingStuff);
         if (currentStatus.humanPresent && currentStatus.missingStuff) {
             if (!reminderSet) {
-                timer.in(180000, sendReminder);
+                reminderTask = timer.in(60000, sendReminder);
                 reminderSet = true;
             }
         } else {
+            timer.cancel(reminderTask);
             reminderSet = false;
         }
         
