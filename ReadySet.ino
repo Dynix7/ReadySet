@@ -29,14 +29,16 @@ void setup() {
 
     SCREEN.initScreen();
 
-    //connectWifi();
-    //connectTime();
-    //updateWeather();
-    currentStatus.currentTime.tm_hour = 6;
-    strcpy(currentStatus.timeString, "Monday, 06:30:00");
-    currentStatus.mainWeather = "Raining";
-    currentStatus.description = "Light Rain";
-    currentStatus.isRaining = true;
+    connectWifi();
+    connectTime();
+    updateWeather();
+
+    // Hardcode optional for testing
+    // currentStatus.currentTime.tm_hour = 6;
+    // strcpy(currentStatus.timeString, "Monday, 06:30:00");
+    // currentStatus.mainWeather = "Raining";
+    // currentStatus.description = "Light Rain";
+    // currentStatus.isRaining = true;
 }
 
 
