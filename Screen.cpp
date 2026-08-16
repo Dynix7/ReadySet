@@ -27,15 +27,15 @@ void ScreenHelper::updateScreen() {
         Screen->print("Time: ");
         Screen->println(currentStatus->timeString);
 
-        Screen->setCursor(leftAlign, row1);
+        Screen->setCursor(leftAlign, row3);
         Screen->print("Main Weather: ");
         Screen->println(currentStatus->mainWeather);
 
-        Screen->setCursor(leftAlign, row2);
+        Screen->setCursor(leftAlign, row5);
         Screen->print("Description: ");
         Screen->println(currentStatus->description);
 
-        Screen->setCursor(leftAlign, row3);
+        Screen->setCursor(leftAlign, row7);
         Screen->print("Missing Anything?: ");
         Screen->println(currentStatus->missingStuff);
 

@@ -1,5 +1,4 @@
 #include <Wire.h>
-#include <SPI.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -30,10 +29,14 @@ void setup() {
 
     SCREEN.initScreen();
 
-    connectWifi();
-    connectTime();
-    updateWeather();
-
+    //connectWifi();
+    //connectTime();
+    //updateWeather();
+    currentStatus.currentTime.tm_hour = 6;
+    strcpy(currentStatus.timeString, "Monday, 06:30:00");
+    currentStatus.mainWeather = "Raining";
+    currentStatus.description = "Light Rain";
+    currentStatus.isRaining = true;
 }
 
 
@@ -43,16 +46,14 @@ void setup() {
 void loop() {
     static bool reminderSet = false;
 
-    if (WiFi.status() != WL_CONNECTED) {
-        connectWifi();
-    }
+    //updateWifi();
 
-    updateTime();
+    //updateTime();
     timer.tick();
     SCREEN.updateScreen();
-    updateWeather();
+    //updateWeather();
     int sonarDistance = pingSonar();
-    bool beamBreak = pingIR();
+    bool beamBreak = false;
     bool pressurePlate = checkButton(BUTTON);
 
     currentStatus.humanPresent = (sonarDistance > 0 && sonarDistance < 100);
@@ -90,23 +91,63 @@ void pinSetup() {
 }
 
 void connectWifi() {
+    const long timeOut = 5000;
+    static long lastTry = 0;
+    if (millis() - lastTry)
     WiFi.begin(SSID, PASSWD);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(50);
+    if (WiFi.status() != WL_CONNECTED) {
         Serial.print(".");
     }
-    Serial.println(" Connected");
+
+}
+
+bool updateWifi() {
+  static unsigned long startTime = 0;
+  static bool connecting = false;
+  const unsigned long TIMEOUT = 10000;
+
+
+  if (WiFi.status() == WL_CONNECTED) {
+    connecting = false;
+    return true;
+  }
+
+  if (!connecting) {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(SSID, PASSWD);
+    startTime = millis();
+    connecting = true;
+  }
+
+  if (millis() - startTime < TIMEOUT) {
+    return false;  
+  }
+
+  connecting = false;
+  return false;
 }
 
 void connectTime() {
-    configTime(timeOffset, daylightSaving, timeServer);
-    Serial.println("Connecting Time");
-    while (!getLocalTime(&currentStatus.currentTime)) {
-        delay(100);
-        Serial.print(".");
+    static unsigned long prevTimeUpdate = 0;
+
+    if (getLocalTime(&currentStatus.currentTime)) {
+        strftime(currentStatus.timeString, sizeof(currentStatus.timeString), "%A, %H:%M:%S", &currentStatus.currentTime);
+        prevTimeUpdate = 0;
+        return;
     }
-    strftime(currentStatus.timeString, sizeof(currentStatus.timeString), "%A, %H:%M:%S", &currentStatus.currentTime);
-    Serial.println("Time Connected :)");
+
+    if (WiFi.status() != WL_CONNECTED) {
+        return;
+    }
+
+    if (prevTimeUpdate == 0) {
+        configTime(timeOffset, daylightSaving, timeServer);
+        prevTimeUpdate = millis();
+    }
+
+    if (millis() - prevTimeUpdate > 10000) {
+        prevTimeUpdate = 0;
+    }
 }
 
 void updateTime() {
@@ -120,6 +161,8 @@ void updateTime() {
     }
 
 }
+
+
 void updateWeather() {
     const unsigned long weatherUpdateInterval = 600000;
     static unsigned long prevWeatherUpdate = 0;
@@ -203,14 +246,14 @@ void Buzz(bool startBuzz) {
     
 
     if (startBuzz && !isBuzzing && (millis() - prevBuzz >= buzzDuration + buzzCooldown)) {
-        digitalWrite(BUZZER, HIGH);
+        tone(BUZZER, 1000);
         isBuzzing = true;
         prevBuzz = millis();
     }
 
     if (isBuzzing) {
         if ((millis() - prevBuzz) > buzzDuration) {
-            digitalWrite(BUZZER, LOW);
+            noTone(BUZZER);
             isBuzzing = false;
         }
     }   
