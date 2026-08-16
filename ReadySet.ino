@@ -42,18 +42,16 @@ void setup() {
 }
 
 
-//Things to add
-//Weekday only stuff
-// Temperature Reminders
+
 void loop() {
     static bool reminderSet = false;
 
-    //updateWifi();
+    updateWifi();
 
-    //updateTime();
+    updateTime();
     timer.tick();
     SCREEN.updateScreen();
-    //updateWeather();
+    updateWeather();
     int sonarDistance = pingSonar();
     bool beamBreak = false;
     bool pressurePlate = checkButton(BUTTON);
